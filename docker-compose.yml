@@ -15,6 +15,20 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: atlas-litellm
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml:ro
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+    command:
+      - "--config"
+      - "/app/config.yaml"
 
 volumes:
   postgres_data:
