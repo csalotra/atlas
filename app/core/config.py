@@ -10,6 +10,12 @@ class Settings(BaseSettings):
 
     database_url: str
 
+    litellm_base_url: str = "http://localhost:4000/v1"
+    litellm_master_key: str
+    litellm_model: str = "atlas-default"
+    llm_timeout: float = 60.0
+    llm_max_retries: int = 2
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
