@@ -9,8 +9,8 @@ class UserAlreadyExistsError(AppError):
 class LLMError(AppError):
     """Base class for LLM-related errors."""
 
-    def __init__(self) -> None:
-        super().__init__("An LLM error occurred.")
+    def __init__(self, message: str = "An LLM error occurred.") -> None:
+        super().__init__(message)
 
 
 class LLMTimeoutError(LLMError):
