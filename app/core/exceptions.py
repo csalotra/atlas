@@ -60,3 +60,6 @@ class LLMNotFoundError(LLMError):
 
     def __init__(self) -> None:
         super().__init__("The requested LLM resource was not found.")
+
+class DocumentAlreadyExistsError(AppError):
+    """Raised when a document storage key already exists."""

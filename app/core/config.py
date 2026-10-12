@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     llm_timeout: float = 60.0
     llm_max_retries: int = 2
 
+    embedding_model: str = "atlas-embedding"
+
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_collection: str = "atlas_chunks"
+    embedding_dimensions: int = 1536
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

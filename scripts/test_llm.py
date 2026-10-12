@@ -2,6 +2,6 @@ from app.llm.client import LLMClient
 
 llm = LLMClient()
 
-response = llm.generate("Write a short poem about the ocean.")
+response = llm.generate([{"role": "user", "content": "Hello"}])
 
-print(response.choices[0].message.content)
+print(response.text)

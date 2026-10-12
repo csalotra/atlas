@@ -1,8 +1,11 @@
+from unittest import result
+
 import openai
 import pytest
 import httpx2
 
 from unittest.mock import Mock
+from openai.types.chat import ChatCompletion, ChatCompletionMessage, ChatCompletionChunk
 
 from app.core.exceptions import (
     LLMAuthenticationError,
@@ -27,7 +30,7 @@ def test_llm_client_timeout(monkeypatch):
     )
 
     with pytest.raises(LLMTimeoutError, match="LLM request timed out.") as exc_info:
-        llm.generate("Hello")
+        llm.generate([{"role": "user", "content": "Hello"}])
 
     assert isinstance(exc_info.value.__cause__, openai.APITimeoutError)
 
@@ -54,7 +57,7 @@ def test_llm_client_rate_limit(monkeypatch):
         LLMRateLimitError,
         match="LLM request was rate limited.",
     ) as exc_info:
-        llm.generate("Hello")
+        llm.generate([{"role": "user", "content": "Hello"}])
 
     assert isinstance(exc_info.value.__cause__, openai.RateLimitError)
 
@@ -78,7 +81,7 @@ def test_llm_client_connection_error(monkeypatch):
         LLMConnectionError,
         match="Could not connect to the LLM service.",
     ) as exc_info:
-        llm.generate("Hello")
+        llm.generate([{"role": "user", "content": "Hello"}])
 
     assert isinstance(
         exc_info.value.__cause__,
@@ -108,7 +111,7 @@ def test_llm_client_server_error(monkeypatch):
         LLMServerError,
         match="The LLM service returned a server error.",
     ) as exc_info:
-        llm.generate("Hello")
+        llm.generate([{"role": "user", "content": "Hello"}])
 
     assert isinstance(
         exc_info.value.__cause__,
@@ -138,7 +141,7 @@ def test_llm_client_authentication_error(monkeypatch):
         LLMAuthenticationError,
         match="Authentication with the LLM service failed.",
     ) as exc_info:
-        llm.generate("Hello")
+        llm.generate([{"role": "user", "content": "Hello"}])
 
     assert isinstance(
         exc_info.value.__cause__,
@@ -168,7 +171,7 @@ def test_llm_client_invalid_request(monkeypatch):
         LLMInvalidRequestError,
         match="The LLM request was invalid.",
     ) as exc_info:
-        llm.generate("Hello")
+        llm.generate([{"role": "user", "content": "Hello"}])
 
     assert isinstance(
         exc_info.value.__cause__,
@@ -198,7 +201,7 @@ def test_llm_client_not_found(monkeypatch):
         LLMNotFoundError,
         match="The requested LLM resource was not found.",
     ) as exc_info:
-        llm.generate("Hello")
+        llm.generate([{"role": "user", "content": "Hello"}])
 
     assert isinstance(
         exc_info.value.__cause__,
@@ -227,6 +230,153 @@ def test_llm_client_generic_error(monkeypatch):
         LLMError,
         match="An LLM error occurred.",
     ) as exc_info:
-        llm.generate("Hello")
+        llm.generate([{"role": "user", "content": "Hello"}])
 
     assert isinstance(exc_info.value.__cause__, openai.APIError)
+
+
+def test_llm_client_success(monkeypatch):
+    llm = LLMClient()
+
+    response = ChatCompletion(
+        id="test-id",
+        choices=[
+            {
+                "finish_reason": "stop",
+                "index": 0,
+                "message": ChatCompletionMessage(
+                    role="assistant",
+                    content="Hello!",
+                ),
+            }
+        ],
+        created=0,
+        model="atlas-default",
+        object="chat.completion",
+    )
+
+    monkeypatch.setattr(
+        llm.client.chat.completions,
+        "create",
+        Mock(return_value=response),
+    )
+
+    result = llm.generate([{"role": "user", "content": "Hello"}])
+
+    assert result.text == "Hello!"
+    assert result.model == "atlas-default"
+
+
+def test_llm_client_stream(monkeypatch):
+    llm = LLMClient()
+
+    chunks = [
+        ChatCompletionChunk(
+            id="chunk-1",
+            choices=[
+                {
+                    "delta": {
+                        "content": "Hello",
+                        "role": "assistant",
+                    },
+                    "finish_reason": None,
+                    "index": 0,
+                }
+            ],
+            created=0,
+            model="atlas-default",
+            object="chat.completion.chunk",
+        ),
+        ChatCompletionChunk(
+            id="chunk-2",
+            choices=[
+                {
+                    "delta": {
+                        "content": " there!",
+                    },
+                    "finish_reason": "stop",
+                    "index": 0,
+                }
+            ],
+            created=0,
+            model="atlas-default",
+            object="chat.completion.chunk",
+        ),
+    ]
+
+    mock_create = Mock(return_value=chunks)
+
+    monkeypatch.setattr(
+        llm.client.chat.completions,
+        "create",
+        mock_create,
+    )
+
+    result = list(llm.stream([{"role": "user", "content": "Hello"}]))
+
+    assert [chunk.text for chunk in result] == [
+        "Hello",
+        " there!",
+    ]
+
+    print(mock_create.call_args)
+    mock_create.assert_called_once_with(
+        model=llm.settings.litellm_model,
+        messages=[{"role": "user", "content": "Hello"}],
+        stream=True,
+        temperature=0.7,
+    )
+
+
+def test_llm_client_custom_temperature(monkeypatch):
+    llm = LLMClient()
+
+    response = ChatCompletion(
+        id="test-id",
+        choices=[
+            {
+                "finish_reason": "stop",
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Hello!",
+                },
+            }
+        ],
+        created=0,
+        model="atlas-default",
+        object="chat.completion",
+    )
+
+    mock_create = Mock(return_value=response)
+
+    monkeypatch.setattr(
+        llm.client.chat.completions,
+        "create",
+        mock_create,
+    )
+
+    llm.generate(
+        [{"role": "user", "content": "Hello"}],
+        temperature=0.2,
+    )
+
+    mock_create.assert_called_once_with(
+        model=llm.settings.litellm_model,
+        messages=[{"role": "user", "content": "Hello"}],
+        temperature=0.2,
+    )
+
+
+def test_llm_client_rejects_empty_messages():
+    llm = LLMClient()
+
+    with pytest.raises(LLMInvalidRequestError):
+        llm.generate([])
+
+
+def test_llm_client_stream_rejects_empty_messages():
+    llm = LLMClient()
+
+    with pytest.raises(LLMInvalidRequestError):
+        list(llm.stream([]))
