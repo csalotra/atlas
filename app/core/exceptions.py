@@ -61,5 +61,14 @@ class LLMNotFoundError(LLMError):
     def __init__(self) -> None:
         super().__init__("The requested LLM resource was not found.")
 
+
 class DocumentAlreadyExistsError(AppError):
     """Raised when a document storage key already exists."""
+
+
+class DuplicateDocumentError(AppError):
+    """Raised when identical document content has already been ingested."""
+
+
+class VectorStoreError(AppError):
+    """Base class for vector-store-related errors."""

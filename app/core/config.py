@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -21,6 +22,8 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "atlas_chunks"
     embedding_dimensions: int = 1536
+
+    document_storage_dir: Path = Path("data/documents")
 
     model_config = SettingsConfigDict(
         env_file=".env",

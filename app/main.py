@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.api.documents import router as documents_router
 from app.api.users import router as users_router
 from app.core.exceptions import UserAlreadyExistsError
 
@@ -11,6 +12,7 @@ app = FastAPI(
 )
 
 app.include_router(users_router)
+app.include_router(documents_router)
 
 
 @app.get("/")

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.core.exceptions import DocumentAlreadyExistsError
 
+
 class DocumentRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -39,21 +40,18 @@ class DocumentRepository:
         self.session.add(record)
 
         try:
-         await self.session.flush()
+            await self.session.flush()
         except IntegrityError as exc:
-           await self.session.rollback()
-           raise DocumentAlreadyExistsError(
+            await self.session.rollback()
+            raise DocumentAlreadyExistsError(
                 f"Document with ID {document.document_id} already exists."
             ) from exc
 
-        
         return self._to_domain(record)
 
     async def get(self, document_id: UUID) -> Document | None:
         result = await self.session.execute(
-            select(DocumentRecord).where(
-                DocumentRecord.document_id == document_id
-            )
+            select(DocumentRecord).where(DocumentRecord.document_id == document_id)
         )
         record = result.scalar_one_or_none()
 
@@ -61,3 +59,29 @@ class DocumentRepository:
             return None
 
         return self._to_domain(record)
+
+    async def get_by_checksum(self, checksum: str) -> Document | None:
+        result = await self.session.execute(
+            select(DocumentRecord).where(DocumentRecord.checksum == checksum)
+        )
+        record = result.scalar_one_or_none()
+
+        if record is None:
+            return None
+
+        return self._to_domain(record)
+
+    async def update_status(
+        self,
+        document_id: UUID,
+        status: DocumentStatus,
+    ) -> Document | None:
+        document = await self.session.get(DocumentRecord, document_id)
+
+        if document is None:
+            return None
+
+        document.status = status
+        await self.session.flush()
+
+        return self._to_domain(document)

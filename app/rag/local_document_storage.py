@@ -16,13 +16,10 @@ class LocalDocumentStorage(DocumentStorage):
 
         return path
 
-    def save(self, source: Path, storage_key: str) -> None:
-        if not source.is_file():
-            raise FileNotFoundError(f"Source file not found: {source}")
-
+    def save(self, content: bytes, storage_key: str) -> None:
         destination = self._resolve_path(storage_key)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(source.read_bytes())
+        destination.write_bytes(content)
 
     def read(self, storage_key: str) -> bytes:
         return self._resolve_path(storage_key).read_bytes()

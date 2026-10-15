@@ -66,3 +66,48 @@ async def test_create_document_with_duplicate_storage_key(
 
     with pytest.raises(DocumentAlreadyExistsError):
         await repository.create(second)
+
+
+@pytest.mark.asyncio
+async def test_get_by_checksum(db_session: AsyncSession) -> None:
+    repository = DocumentRepository(db_session)
+    document = Document(
+        document_id=uuid4(),
+        filename="report.pdf",
+        storage_key=f"documents/{uuid4()}.pdf",
+        checksum="a" * 64,
+    )
+
+    await repository.create(document)
+
+    result = await repository.get_by_checksum("a" * 64)
+
+    assert result is not None
+    assert result.document_id == document.document_id
+    assert result.checksum == "a" * 64
+
+
+@pytest.mark.asyncio
+async def test_update_document_status(db_session: AsyncSession) -> None:
+    repository = DocumentRepository(db_session)
+    document_id = uuid4()
+
+    document = Document(
+        document_id=document_id,
+        filename="report.pdf",
+        storage_key=f"documents/{document_id}.pdf",
+        checksum="a" * 64,
+    )
+    await repository.create(document)
+
+    updated = await repository.update_status(
+        document_id,
+        DocumentStatus.PROCESSING,
+    )
+
+    assert updated is not None
+    assert updated.status == DocumentStatus.PROCESSING
+
+    retrieved = await repository.get(document_id)
+    assert retrieved is not None
+    assert retrieved.status == DocumentStatus.PROCESSING

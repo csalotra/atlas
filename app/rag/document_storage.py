@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
 
 
 class DocumentStorage(ABC):
     @abstractmethod
-    def save(self, source: Path, storage_key: str) -> None:
-        """Save a source file under a storage key."""
+    def save(self, content: bytes, storage_key: str) -> None:
+        """Save document content under a storage key."""
         ...
 
     @abstractmethod
