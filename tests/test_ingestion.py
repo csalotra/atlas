@@ -84,3 +84,25 @@ async def test_ingest_rejects_duplicate_content(
 
     storage.save.assert_not_called()
     repository.create.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ingest_preserves_repository_error_when_cleanup_fails(
+    document_source: DocumentSource,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    storage = Mock()
+    storage.delete.side_effect = RuntimeError("Cleanup error")
+
+    repository = Mock()
+    repository.create = AsyncMock(side_effect=RuntimeError("Database error"))
+    repository.get_by_checksum = AsyncMock(return_value=None)
+
+    service = DocumentIngestionService(storage=storage, repository=repository)
+
+    with pytest.raises(RuntimeError, match="Database error"):
+        await service.ingest(document_source)
+
+    storage.delete.assert_called_once()
+    assert "Failed to clean up stored document" in caplog.text
+    assert "Cleanup error" in caplog.text

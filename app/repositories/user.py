@@ -28,8 +28,6 @@ class UserRepository:
         try:
             await self.session.flush()
         except IntegrityError as exc:
-            await self.session.rollback()
-
             raise UserAlreadyExistsError("User with this email already exists") from exc
 
         return user

@@ -72,3 +72,11 @@ class DuplicateDocumentError(AppError):
 
 class VectorStoreError(AppError):
     """Base class for vector-store-related errors."""
+
+
+class DocumentNotFoundError(AppError):
+    """Raised when a requested document does not exist."""
+
+
+class InvalidDocumentError(AppError):
+    """Raised when a document is invalid or cannot be processed."""

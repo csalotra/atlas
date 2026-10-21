@@ -1,11 +1,13 @@
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
+import pytest
 from openai.types.create_embedding_response import CreateEmbeddingResponse
 
 from app.rag.embeddings import EmbeddingClient
 
 
-def test_embed_returns_embedding(monkeypatch):
+@pytest.mark.asyncio
+async def test_embed_returns_embedding(monkeypatch) -> None:
     client = EmbeddingClient()
 
     response = CreateEmbeddingResponse(
@@ -24,7 +26,7 @@ def test_embed_returns_embedding(monkeypatch):
         },
     )
 
-    mock_create = Mock(return_value=response)
+    mock_create = AsyncMock(return_value=response)
 
     monkeypatch.setattr(
         client.client.embeddings,
@@ -32,11 +34,11 @@ def test_embed_returns_embedding(monkeypatch):
         mock_create,
     )
 
-    result = client.embed("hello world")
+    result = await client.embed("hello world")
 
     assert result == [0.1, 0.2, 0.3]
 
-    mock_create.assert_called_once_with(
+    mock_create.assert_awaited_once_with(
         model="atlas-embedding",
         input="hello world",
     )

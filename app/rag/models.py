@@ -8,3 +8,4 @@ class EmbeddedChunk:
     index: int
     embedding: list[float]
     document_id: UUID
+    page_number: int = 1

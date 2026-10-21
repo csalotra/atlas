@@ -1,3 +1,4 @@
+import logging
 from uuid import uuid4
 
 from app.core.exceptions import DuplicateDocumentError
@@ -7,6 +8,8 @@ from app.rag.document_source import DocumentSource
 from app.rag.document_storage import DocumentStorage
 from app.rag.pdf_validation import validate_pdf
 from app.repositories.document import DocumentRepository
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentIngestionService:
@@ -41,5 +44,11 @@ class DocumentIngestionService:
         try:
             return await self.repository.create(document)
         except Exception:
-            self.storage.delete(storage_key)
+            try:
+                self.storage.delete(storage_key)
+            except Exception:
+                logger.exception(
+                    "Failed to clean up stored document %s after ingestion failure",
+                    storage_key,
+                )
             raise

@@ -19,8 +19,4 @@ class UserService:
         user = User(email=email)
 
         user = await self.repository.create(user)
-
-        await self.session.commit()
-        await self.session.refresh(user)
-
         return user

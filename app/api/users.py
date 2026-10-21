@@ -19,4 +19,10 @@ async def create_user(
 ) -> UserResponse:
     service = UserService(session)
 
-    return await service.create_user(payload.email)
+    try:
+        user = await service.create_user(payload.email)
+        await session.commit()
+        return user
+    except Exception:
+        await session.rollback()
+        raise

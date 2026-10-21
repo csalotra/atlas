@@ -12,20 +12,19 @@ class RetrievalService:
         self.embedding_client = embedding_client
         self.vector_store = vector_store
 
-    def retrieve(
+    async def retrieve(
         self,
         question: str,
         limit: int = 5,
     ) -> list[EmbeddedChunk]:
         if not question.strip():
             raise ValueError("Question must not be empty.")
-
         if limit <= 0:
             raise ValueError("limit must be greater than 0.")
 
-        query_embedding = self.embedding_client.embed(question)
+        query_embedding = await self.embedding_client.embed(question)
 
-        return self.vector_store.search(
+        return await self.vector_store.search(
             query_embedding=query_embedding,
             limit=limit,
         )

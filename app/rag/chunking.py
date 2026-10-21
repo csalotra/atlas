@@ -8,11 +8,12 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 class Chunk:
     text: str
     index: int
+    page_number: int = 1
 
 
 class Chunker(ABC):
     @abstractmethod
-    def chunk(self, text: str) -> list[Chunk]: ...
+    def chunk(self, text: str, page_number: int = 1) -> list[Chunk]: ...
 
 
 class RecursiveChunker(Chunker):
@@ -33,10 +34,13 @@ class RecursiveChunker(Chunker):
             separators=["\n\n", "\n", ". ", " ", ""],
         )
 
-    def chunk(self, text: str) -> list[Chunk]:
+    def chunk(self, text: str, page_number: int = 1) -> list[Chunk]:
         if not text.strip():
             return []
 
         texts = self.splitter.split_text(text)
 
-        return [Chunk(text=chunk, index=index) for index, chunk in enumerate(texts)]
+        return [
+            Chunk(text=chunk, index=index, page_number=page_number)
+            for index, chunk in enumerate(texts)
+        ]

@@ -2,11 +2,10 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.rag.document_models import Document, DocumentStatus
 from app.repositories.document import DocumentRepository
-
-from app.core.exceptions import DocumentAlreadyExistsError
 
 
 @pytest.mark.asyncio
@@ -64,7 +63,7 @@ async def test_create_document_with_duplicate_storage_key(
 
     await repository.create(first)
 
-    with pytest.raises(DocumentAlreadyExistsError):
+    with pytest.raises(IntegrityError):
         await repository.create(second)
 
 

@@ -5,10 +5,10 @@ from app.rag.models import EmbeddedChunk
 
 class VectorStore(ABC):
     @abstractmethod
-    def add(self, chunks: list[EmbeddedChunk]) -> None: ...
+    async def add(self, chunks: list[EmbeddedChunk]) -> None: ...
 
     @abstractmethod
-    def search(
+    async def search(
         self,
         query_embedding: list[float],
         limit: int = 5,

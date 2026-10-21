@@ -1,16 +1,28 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from uuid import UUID
+
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import DuplicateDocumentError
 from app.db.session import get_db
 from app.dependencies import get_document_ingestion_service
+from app.rag.background_tasks import index_document_in_background
 from app.rag.document_source import DocumentSource
 from app.rag.ingestion import DocumentIngestionService
 from app.schemas.document import DocumentResponse
+from app.repositories.document import DocumentRepository
+
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 UPLOAD_CHUNK_SIZE = 1024 * 1024
 
 
@@ -30,7 +42,7 @@ async def read_upload_with_limit(file: UploadFile) -> bytes:
         if total_size > MAX_UPLOAD_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="File exceeds the 10 MB upload limit.",
+                detail="File exceeds the 50 MB upload limit.",
             )
 
         chunks.append(chunk)
@@ -40,6 +52,7 @@ async def read_upload_with_limit(file: UploadFile) -> bytes:
 
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
     service: DocumentIngestionService = Depends(get_document_ingestion_service),
@@ -68,6 +81,11 @@ async def upload_document(
         )
         await session.commit()
 
+        background_tasks.add_task(
+            index_document_in_background,
+            document.document_id,
+        )
+
         return DocumentResponse(
             document_id=document.document_id,
             filename=document.filename,
@@ -75,12 +93,6 @@ async def upload_document(
             created_at=document.created_at,
         )
 
-    except DuplicateDocumentError as exc:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
     except HTTPException:
         await session.rollback()
         raise
@@ -89,3 +101,25 @@ async def upload_document(
         raise
     finally:
         await file.close()
+
+
+@router.get("/{document_id}", response_model=DocumentResponse)
+async def get_document(
+    document_id: UUID,
+    session: AsyncSession = Depends(get_db),
+) -> DocumentResponse:
+    repository = DocumentRepository(session)
+    document = await repository.get(document_id)
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    return DocumentResponse(
+        document_id=document.document_id,
+        filename=document.filename,
+        status=document.status,
+        created_at=document.created_at,
+    )

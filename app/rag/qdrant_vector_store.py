@@ -1,30 +1,40 @@
-from uuid import uuid5, NAMESPACE_URL, UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
-from qdrant_client import QdrantClient, models
+from qdrant_client import AsyncQdrantClient, models
 
 from app.core.config import get_settings
+from app.core.exceptions import VectorStoreError
 from app.rag.models import EmbeddedChunk
 from app.rag.vector_store import VectorStore
-from app.core.exceptions import VectorStoreError
 
 
 class QdrantVectorStore(VectorStore):
-    def __init__(self, client: QdrantClient) -> None:
+    def __init__(
+        self,
+        client: AsyncQdrantClient,
+        collection: str | None = None,
+    ) -> None:
         settings = get_settings()
         self.client = client
-        self.collection = settings.qdrant_collection
+        self.collection = collection or settings.qdrant_collection
         self.dimensions = settings.embedding_dimensions
 
-        if not self.client.collection_exists(self.collection):
-            self.client.create_collection(
-                collection_name=self.collection,
-                vectors_config=models.VectorParams(
-                    size=self.dimensions,
-                    distance=models.Distance.COSINE,
-                ),
-            )
+    async def ensure_collection(self) -> None:
+        try:
+            if not await self.client.collection_exists(self.collection):
+                await self.client.create_collection(
+                    collection_name=self.collection,
+                    vectors_config=models.VectorParams(
+                        size=self.dimensions,
+                        distance=models.Distance.COSINE,
+                    ),
+                )
+        except Exception as exc:
+            raise VectorStoreError(
+                "Failed to initialize the vector store collection."
+            ) from exc
 
-    def add(self, chunks: list[EmbeddedChunk]) -> None:
+    async def add(self, chunks: list[EmbeddedChunk]) -> None:
         if not chunks:
             return
 
@@ -41,6 +51,7 @@ class QdrantVectorStore(VectorStore):
                     "text": chunk.text,
                     "index": chunk.index,
                     "document_id": str(chunk.document_id),
+                    "page_number": chunk.page_number,
                 },
             )
             for chunk in chunks
@@ -49,7 +60,7 @@ class QdrantVectorStore(VectorStore):
         for start in range(0, len(points), 128):
             batch = points[start : start + 128]
             try:
-                self.client.upsert(
+                await self.client.upsert(
                     collection_name=self.collection,
                     points=batch,
                 )
@@ -58,7 +69,7 @@ class QdrantVectorStore(VectorStore):
                     f"Failed to store batch starting at point {start}."
                 ) from exc
 
-    def search(
+    async def search(
         self,
         query_embedding: list[float],
         limit: int = 5,
@@ -67,13 +78,13 @@ class QdrantVectorStore(VectorStore):
             raise ValueError("limit must be greater than 0")
 
         try:
-            results = self.client.query_points(
+            results = await self.client.query_points(
                 collection_name=self.collection,
                 query=query_embedding,
                 limit=limit,
                 with_payload=True,
                 with_vectors=True,
-            ).points
+            )
         except Exception as exc:
             raise VectorStoreError("Failed to search the vector store.") from exc
 
@@ -83,6 +94,7 @@ class QdrantVectorStore(VectorStore):
                 index=point.payload["index"],
                 embedding=point.vector,
                 document_id=UUID(point.payload["document_id"]),
+                page_number=point.payload["page_number"],
             )
-            for point in results
+            for point in results.points
         ]

@@ -7,7 +7,6 @@ from uuid import UUID
 from sqlalchemy import select
 
 from sqlalchemy.exc import IntegrityError
-from app.core.exceptions import DocumentAlreadyExistsError
 
 
 class DocumentRepository:
@@ -38,14 +37,7 @@ class DocumentRepository:
         )
 
         self.session.add(record)
-
-        try:
-            await self.session.flush()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise DocumentAlreadyExistsError(
-                f"Document with ID {document.document_id} already exists."
-            ) from exc
+        await self.session.flush()
 
         return self._to_domain(record)
 
